@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no"/>
+<title>試験対策アプリ</title>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    margin: 0;
+    padding: 0.5rem;
+    background: #f9f9f9;
+    color: #333;
+    font-size: 18px;
+    line-height: 1.6;
+  }
+  h1 {
+    text-align: center;
+    font-size: 1.8rem;
+    margin: 1.5rem 0 2rem;
+    color: #2c3e50;
+  }
+  .container {
+    width: 100%;
+    max-width: 500px;
+    margin: 0 auto;
+    box-sizing: border-box;
+  }
+  .tag-btn {
+    display: block;
+    width: 100%;
+    padding: 1.8rem 1rem;
+    margin: 1.2rem 0;
+    border: 1px solid #dcdde1;
+    border-radius: 15px;
+    font-size: 1.3rem;
+    font-weight: bold;
+    background: #fff;
+    text-align: center;
+    cursor: pointer;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    color: #2f3640;
+    text-decoration: none;
+    box-sizing: border-box;
+  }
+  .tag-btn:active {
+    background: #f5f6fa;
+    transform: scale(0.98);
+  }
+  .btn-s1 { border-left: 10px solid #f1c40f; }
+  .btn-s2 { border-left: 10px solid #e74c3c; }
+  .btn-s3 { border-left: 10px solid #3498db; }
+  .btn-s4 { border-left: 10px solid #2ecc71; }
+  .back-btn {
+    border-left: 10px solid #95a5a6;
+    background: #ecf0f1;
+    margin-top: 2rem;
+  }
+  #table-container {
+    margin-bottom: 1.5rem;
+    overflow-x: auto;
+  }
+  table.mini-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    font-size: 1rem;
+    text-align: center;
+  }
+  table.mini-table th, table.mini-table td {
+    border: 1px solid #ccc;
+    padding: 0.4rem;
+  }
+  .cell-header {
+    background: #e9ecef;
+    font-weight: bold;
+    color: #495057;
+  }
+  #question { margin: 1.5rem 0.5rem; font-size: 1.1rem; font-weight: bold; line-height: 1.5; }
+  #options { list-style: none; padding: 0; }
+  #options li { margin-bottom: 0.8rem; }
+  #options button {
+    width: 100%; padding: 1.3rem; font-size: 1.1rem; border: 1px solid #ccc;
+    border-radius: 12px; background: #fff; text-align: left;
+  }
+  #options button:disabled { opacity: 0.8; }
+  #progress { text-align: center; margin-top: 1.5rem; color: #888; font-size: 0.9rem; }
+  #overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background-color: rgba(0, 0, 0, 0.7); display: none;
+    align-items: center; justify-content: center; z-index: 100;
+  }
+  #modal { background: #fff; padding: 1.5rem; border-radius: 15px; width: 88%; max-width: 400px; box-sizing: border-box; }
+  #modal-message { font-size: 1.5rem; font-weight: bold; text-align: center; margin-bottom: 1rem; }
+  #modal-explanation {
+    font-size: 0.95rem; color: #444; margin-top: 1rem;
+    border-top: 1px solid #eee; padding-top: 1rem; line-height: 1.6;
+    max-height: 50vh; overflow-y: auto; text-align: left;
+  }
+  #modalNextBtn {
+    display: block; width: 100%; padding: 1.3rem; margin-top: 1.5rem;
+    border: none; border-radius: 12px; font-size: 1.2rem; font-weight: bold;
+    background: #3498db; color: #fff;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1 id="mainTitle">試験対策アプリ</h1>
+  
+  <div id="subject-select">
+    <button class="tag-btn btn-s1" onclick="showLevels('ワープロ')">ワープロ</button>
+    <button class="tag-btn btn-s2" onclick="showLevels('表計算')">表計算</button>
+  </div>
+
+  <div id="level-select" style="display:none;">
+    <button class="tag-btn btn-s1" onclick="startQuiz('02')">2級</button>
+    <button class="tag-btn btn-s2" onclick="startQuiz('02p')">準2級</button>
+    <button class="tag-btn btn-s3" onclick="startQuiz('03')">3級</button>
+    <button class="tag-btn btn-s4" onclick="startQuiz('04')">4級</button>
+    <button class="tag-btn back-btn" onclick="showSubjects()">戻る</button>
+  </div>
+
+  <div id="quiz" style="display:none;">
+    <div id="table-container"></div>
+    <div id="question"></div>
+    <ul id="options"></ul>
+    <div id="progress"></div>
+  </div>
+
+  <div id="result" style="display:none; text-align:center;">
+    <div id="result-content"></div>
+    <button class="tag-btn" style="background:#d4edda; border-color:#28a745;" onclick="restartWithNewQuestions()">続ける</button>
+    <button class="tag-btn back-btn" onclick="location.reload()">トップに戻る</button>
+  </div>
+</div>
+
+<div id="overlay">
+  <div id="modal">
+    <div id="modal-message"></div>
+    <div id="modal-explanation"></div>
+    <button id="modalNextBtn">次へ ▶</button>
+  </div>
+</div>
+
+<script>
+  let allQuestions = []; 
+  let questions = [];    
+  let current = 0, score = 0, selectedSubject = '', currentFileName = '';
+
+  function escapeHTML(str) {
+    if (!str) return "";
+    return String(str).replace(/&/g, '&amp;')
+                      .replace(/</g, '&lt;')
+                      .replace(/>/g, '&gt;')
+                      .replace(/"/g, '&quot;')
+                      .replace(/'/g, '&#39;');
+  }
+
+  function showSubjects() {
+    document.getElementById('level-select').style.display = 'none';
+    document.getElementById('subject-select').style.display = 'block';
+  }
+
+  function showLevels(subject) {
+    selectedSubject = subject;
+    document.getElementById('subject-select').style.display = 'none';
+    document.getElementById('level-select').style.display = 'block';
+  }
+
+  async function startQuiz(levelCode) {
+    document.getElementById('level-select').style.display = 'none';
+    document.getElementById('mainTitle').style.display = 'none'; 
+    
+    const prefix = selectedSubject === 'ワープロ' ? 'W' : 'E';
+    currentFileName = `${prefix}${levelCode}.csv`;
+    
+    try {
+      allQuestions = await loadCSV(currentFileName);
+    } catch(err) {
+      alert("CSV読み込み失敗: " + currentFileName);
+      location.reload();
+      return;
+    }
+    restartWithNewQuestions();
+  }
+
+  function getClearedIds() {
+    const data = localStorage.getItem('cleared_' + currentFileName);
+    return data ? JSON.parse(data) : [];
+  }
+
+  function saveClearedId(id) {
+    let cleared = getClearedIds();
+    if (!cleared.includes(id)) {
+      cleared.push(id);
+      localStorage.setItem('cleared_' + currentFileName, JSON.stringify(cleared));
+    }
+  }
+
+  function restartWithNewQuestions() {
+    document.getElementById('result').style.display = 'none';
+    const clearedIds = getClearedIds();
+    const unsolved = allQuestions.filter(q => !clearedIds.includes(q.id));
+    const solved = allQuestions.filter(q => clearedIds.includes(q.id));
+    let selection = shuffle([...unsolved]);
+    if (selection.length < 20) {
+      const needed = 20 - selection.length;
+      selection = selection.concat(shuffle([...solved]).slice(0, needed));
+    } else {
+      selection = selection.slice(0, 20);
+    }
+    questions = selection;
+    current = 0; score = 0;
+    
+    if (questions.length === 0) {
+      alert("問題データがありません。");
+      location.reload();
+      return;
+    }
+    
+    document.getElementById('quiz').style.display = 'block';
+    showQuestion();
+  }
+
+  async function loadCSV(file) {
+    const response = await fetch(file);
+    if (!response.ok) throw new Error("File not found");
+    const text = await response.text();
+    
+    const parseCsvLine = (line) => {
+      const result = [];
+      let currentField = '', inQuote = false;
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if (char === '"') {
+          if (inQuote && line[i + 1] === '"') { currentField += '"'; i++; }
+          else inQuote = !inQuote;
+        } else if (char === ',' && !inQuote) {
+          result.push(currentField);
+          currentField = '';
+        } else currentField += char;
+      }
+      result.push(currentField);
+      return result;
+    };
+    
+    const isExcel = file.startsWith('E');
+
+    return text.trim().split(/\r?\n/).slice(1).map(line => {
+      if (!line.trim()) return null;
+      const c = parseCsvLine(line);
+      
+      let id, tableStr = "", qTxt, opts, answerNum, explanationTxt;
+
+      if (isExcel) {
+        if (c.length < 9) return null;
+        id = c[0];
+        tableStr = c[1];
+        qTxt = c[2];
+        opts = [c[3], c[4], c[5], c[6]].filter(o => o && o.trim() !== "");
+        answerNum = parseInt(c[7]) - 1;
+        explanationTxt = c[8];
+      } else {
+        if (c.length < 8) return null;
+        id = c[0];
+        qTxt = c[1];
+        opts = [c[2], c[3], c[4], c[5]].filter(o => o && o.trim() !== "");
+        answerNum = parseInt(c[6]) - 1;
+        explanationTxt = c[7];
+      }
+
+      return { id: id, tableStr: tableStr, q: qTxt, options: opts, answer: answerNum, explanation: explanationTxt };
+    }).filter(q => q !== null);
+  }
+
+  function shuffle(a) {
+    for(let i=a.length-1;i>0;i--){
+      const j=Math.floor(Math.random()*(i+1));
+      [a[i],a[j]]=[a[j],a[i]];
+    }
+    return a;
+  }
+
+  function renderTable(tableStr) {
+    if (!tableStr) return '';
+    const rows = tableStr.split('|').map(r => r.split(','));
+    if (rows.length === 0) return '';
+    
+    let maxCols = 0;
+    rows.forEach(r => { if (r.length > maxCols) maxCols = r.length; });
+
+    let html = '<table class="mini-table">';
+    html += '<tr><td class="cell-header"></td>';
+    for (let i = 0; i < maxCols; i++) {
+      html += `<td class="cell-header">${String.fromCharCode(65 + i)}</td>`;
+    }
+    html += '</tr>';
+
+    rows.forEach((row, rowIndex) => {
+      html += '<tr>';
+      html += `<td class="cell-header">${rowIndex + 1}</td>`;
+      for (let i = 0; i < maxCols; i++) {
+        const cellText = row[i] !== undefined ? row[i] : '';
+        html += `<td>${escapeHTML(cellText)}</td>`;
+      }
+      html += '</tr>';
+    });
+    html += '</table>';
+    return html;
+  }
+
+  function showQuestion() {
+    const q = questions[current];
+    document.getElementById('table-container').innerHTML = renderTable(q.tableStr);
+    
+    document.getElementById('question').innerHTML = escapeHTML(q.q).replace(/&lt;br&gt;/g, '<br>'); 
+    
+    const ul = document.getElementById('options');
+    ul.innerHTML = '';
+    q.options.forEach((opt, i) => {
+      const li = document.createElement('li');
+      const btn = document.createElement('button');
+      btn.textContent = opt;
+      btn.onclick = () => selectAnswer(i);
+      li.appendChild(btn);
+      ul.appendChild(li);
+    });
+    document.getElementById('progress').textContent = `${current + 1} / ${questions.length}`;
+  }
+
+  function selectAnswer(idx) {
+    const q = questions[current];
+    const btns = document.getElementById('options').querySelectorAll('button');
+    btns.forEach((btn, i) => {
+      btn.disabled = true;
+      if (i === q.answer) btn.style.background = '#d4edda';
+      else if (i === idx) btn.style.background = '#f8d7da';
+    });
+    const isCorrect = (idx === q.answer);
+    if (isCorrect) {
+      score++;
+      saveClearedId(q.id);
+    }
+    const correctText = q.options[q.answer];
+    document.getElementById('modal-message').textContent = isCorrect ? '🟢 正解！' : '❌ 不正解';
+    
+    let safeExplanation = escapeHTML(q.explanation).replace(/&lt;br&gt;/g, '<br>');
+    
+    document.getElementById('modal-explanation').innerHTML = 
+      "正解：<strong>" + escapeHTML(correctText) + "</strong><br><br>" + 
+      "<strong>解説:</strong><br>" + safeExplanation;
+    document.getElementById('overlay').style.display = 'flex';
+  }
+
+  document.getElementById('modalNextBtn').onclick = () => {
+    document.getElementById('overlay').style.display = 'none';
+    if (++current < questions.length) showQuestion();
+    else showResults();
+  };
+
+  function showResults() {
+    document.getElementById('quiz').style.display = 'none';
+    const r = document.getElementById('result');
+    document.getElementById('result-content').innerHTML = `
+      <h2 style="margin-top:0;">結果</h2>
+      <div style="font-size:2.5rem; font-weight:bold; margin-bottom:1rem;">${score} / ${questions.length}</div>
+    `;
+    r.style.display = 'block';
+  }
+</script>
+</body>
+</html>
